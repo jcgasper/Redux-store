@@ -1,89 +1,91 @@
-import { useReducer } from 'react';
 import {
-    ADD_TO_CART,
-    ADD_MULTIPLE_TO_CART,
-    CLEAR_CART,
-    REMOVE_FROM_CART,
-    UPDATE_CART_QUANTITY,
+    UPDATE_PRODUCTS,
     UPDATE_CATEGORIES,
     UPDATE_CURRENT_CATEGORY,
-    UPDATE_PRODUCTS,
-    TOGGLE_CART,
-} from './actions';
-
-const initialState = {
+    ADD_TO_CART,
+    ADD_MULTIPLE_TO_CART,
+    REMOVE_FROM_CART,
+    UPDATE_CART_QUANTITY,
+    CLEAR_CART,
+    TOGGLE_CART
+  } from './actions';
+  
+  const defaultState = {
+    products: [],
     cart: [],
     cartOpen: false,
-    products: [],
     categories: [],
-    currentCategory: ''    
-};
-
-export const reducer = (state = initialState, action) => {
-    switch (action.type) {
-        case ADD_TO_CART: 
+    currentCategory: '',
+  }
+    
+    const reducer = (state=defaultState, action) => {
+      switch (action.type) {
+          case UPDATE_PRODUCTS:
+              return {
+              ...state,
+              products: [...action.products]
+              };
+          case UPDATE_CATEGORIES:
+              return {
+              ...state,
+              categories: [...action.categories]
+              };
+          case UPDATE_CURRENT_CATEGORY:
+              return {
+                  ...state,
+                  currentCategory: action.currentCategory
+              };
+          case ADD_TO_CART:
             return {
-                ...state,
-                cartOpen: true,
-                cart: [...state.cart, action.product]
+              ...state,
+              cartOpen: true,
+              cart: [...state.cart, action.product]
             };
-        case ADD_MULTIPLE_TO_CART:
+          case ADD_MULTIPLE_TO_CART:
             return {
-                ...state,
-                cart: [...state.cart, ...action.products]
+              ...state,
+              cart: [...state.cart, ...action.products],
             };
-        case CLEAR_CART: 
-            return {
-                ...state,
-                cartOpen:false,
-                cart: []
-            };
-        case REMOVE_FROM_CART:
+          case REMOVE_FROM_CART:
             let newState = state.cart.filter(product => {
-                return product._id !== action._id;
+              return product._id !== action._id;
             });
-
+          
             return {
-                ...state,
-                cartOpen: newState.length > 0,
-                cart: newState
+              ...state,
+              cartOpen: newState.length > 0,
+              cart: newState
             };
-        case TOGGLE_CART:
+          case UPDATE_CART_QUANTITY:
             return {
-                ...state,
-                cartOpen: !state.cartOpen
+              ...state,
+              cartOpen: true,
+              cart: state.cart.map(product => {
+                if (action._id === product._id) {
+                  product.purchaseQuantity = action.purchaseQuantity;
+                }
+                return product;
+              })
             };
-        case UPDATE_CART_QUANTITY:
+  
+          case CLEAR_CART:
             return {
-                ...state,
-                cartOpen: true,
-                cart: state.cart.map(product => {
-                    if (action._id === product._id) {
-                        product.purchaseQuantity = action.purchaseQuantity;
-                    }
-                    return product;
-                })
+              ...state,
+              cartOpen: false,
+              cart: []
             };
-        case UPDATE_PRODUCTS:
+          
+          case TOGGLE_CART:
             return {
-                ...state,
-                products: [...action.products]
+              ...state,
+              cartOpen: !state.cartOpen
             };
-        case UPDATE_CATEGORIES:
-            return {
-                ...state,
-                categories: [...action.categories]
-            };
-
-        case UPDATE_CURRENT_CATEGORY:
-            return {
-                ...state,
-                currentCategory: action.currentCategory
-            };
+    
         default:
-            return state;
-    }
-};
-
-
-export default reducer;
+          return state;
+      }
+    };
+  
+  
+    export default reducer;
+  
