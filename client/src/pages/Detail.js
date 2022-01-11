@@ -1,124 +1,130 @@
-import React, { useEffect } from "react";
-import { TOGGLE_CART, ADD_MULTIPLE_TO_CART } from "../../utils/actions";
-import { idbPromise } from "../../utils/helpers";
-import CartItem from '../CartItem';
-import Auth from '../../utils/auth';
-import './style.css';
+import React, { useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { useQuery } from '@apollo/react-hooks';
+import Cart from "../components/Cart";
 import { useDispatch, useSelector } from 'react-redux';
+import {
+  REMOVE_FROM_CART,
+  UPDATE_CART_QUANTITY,
+  ADD_TO_CART,
+  UPDATE_PRODUCTS,
+} from "../utils/actions";
+import { QUERY_PRODUCTS } from "../utils/queries";
+import { idbPromise } from "../utils/helpers";
+import spinner from '../assets/spinner.gif'
 
-import { loadStripe } from "@stripe/stripe-js";
-import { useLazyQuery } from '@apollo/react-hooks';
-import { QUERY_CHECKOUT } from "../../utils/queries"
-
-
-const stripePromise = loadStripe('pk_test_TYooMQauvdEDq54NiTphI7jx');
-
-const Cart = () => {
-
-
+function Detail() {
   const state = useSelector((state) => {
     return state
   });
-
   const dispatch = useDispatch();
 
-  const [getCheckout, { data }] = useLazyQuery(QUERY_CHECKOUT);
-
-
-
-  useEffect(() => {
-    async function getCart() {
-      const cart = await idbPromise('cart', 'get');
-      dispatch({ type: ADD_MULTIPLE_TO_CART, products: [...cart] });
-    };
   
-    if (!state.cart.length) {
-      getCart();
-    }
-  }, [state.cart.length, dispatch]);
+  const { id } = useParams();
 
-  // use effect for checkout lazyhook
+  const [currentProduct, setCurrentProduct] = useState({});
+
+  const { loading, data } = useQuery(QUERY_PRODUCTS);
+
+  const { products, cart } = state;
+
   useEffect(() => {
-    if (data) {
-      stripePromise.then((res) => {
-        res.redirectToCheckout({ sessionId: data.checkout.session });
+    if (products.length) {
+      setCurrentProduct(products.find(product => product._id === id));
+    } 
+    else if (data) {
+      dispatch({
+        type: UPDATE_PRODUCTS,
+        products: data.products
+      });
+
+      data.products.forEach((product) => {
+        idbPromise('products', 'put', product);
       });
     }
-  }, [data]);
-  
-
-  function toggleCart() {
-    dispatch({ type: TOGGLE_CART });
-  }
-
-  function calculateTotal() {
-    let sum = 0;
-    state.cart.forEach(item => {
-      sum += item.price * item.purchaseQuantity;
-    });
-    return sum.toFixed(2);
-  }
-
-       function submitCheckout() {
-        const productIds = [];
-    
-        state.cart.forEach((item) => {
-          for (let i = 0; i < item.purchaseQuantity; i++) {
-            productIds.push(item._id);
-          }
+    // get cache from idb
+    else if (!loading) {
+      idbPromise('products', 'get').then((indexedProducts) => {
+        dispatch({
+          type: UPDATE_PRODUCTS,
+          products: indexedProducts
         });
-    
-        getCheckout({
-          variables: { products: productIds }
-        });
-      }
-
-    if (!state.cartOpen) {
-      return (
-        <div className="cart-closed" onClick={toggleCart}>
-          <span
-            role="img"
-            aria-label="trash">🛒</span>
-        </div>
-      );
+      });
     }
-    
+  }, [products, data, loading, dispatch, id]);
 
+  const addToCart = () => {
+    const itemInCart = cart.find((cartItem) => cartItem._id === id)
+    if (itemInCart) {
+      dispatch({
+        type: UPDATE_CART_QUANTITY,
+        _id: id,
+        purchaseQuantity: parseInt(itemInCart.purchaseQuantity) + 1
+      });
+      idbPromise('cart', 'put', {
+        ...itemInCart,
+        purchaseQuantity: parseInt(itemInCart.purchaseQuantity) + 1
+      });
+    } else {
+      dispatch({
+        type: ADD_TO_CART,
+        product: { ...currentProduct, purchaseQuantity: 1 }
+      });
+      idbPromise('cart', 'put', { ...currentProduct, purchaseQuantity: 1 });
+
+    }
+  }
+
+  const removeFromCart = () => {
+    dispatch({
+      type: REMOVE_FROM_CART,
+      _id: currentProduct._id
+    });
+
+    idbPromise('cart', 'delete', { ...currentProduct });
+  };
 
   return (
+    <>
+      {currentProduct && cart ? (
+        <div className="container my-1">
+          <Link to="/">
+            ← Back to Products
+          </Link>
 
-    <div className="cart">
-      <div className="close" onClick={toggleCart}>[close]</div>
-      <h2>Shopping Cart</h2>
-      {state.cart.length ? (
-        <div>
-          {state.cart.map(item => (
-            <CartItem key={item._id} item={item} />
-          ))}
-          <div className="flex-row space-between">
-            <strong>Total: ${calculateTotal()}</strong>
-            {
-              Auth.loggedIn() ?
-              <button onClick={submitCheckout}>
-              Checkout
-             </button>
-                :
-                <span>(log in to check out)</span>
-            }
-          </div>
+          <h2>{currentProduct.name}</h2>
+
+          <p>
+            {currentProduct.description}
+          </p>
+
+          <p>
+            <strong>Price:</strong>
+            ${currentProduct.price}
+            {" "}
+            <button onClick={addToCart}>
+              Add to Cart
+            </button>
+            <button 
+              disabled={!cart.find(p => p._id === currentProduct._id)} 
+              onClick={removeFromCart}
+            >
+              Remove from Cart
+            </button>
+          </p>
+
+          <img
+            src={`/images/${currentProduct.image}`}
+            alt={currentProduct.name}
+          />
         </div>
-      ) : (
-        <h3>
-          <span role="img" aria-label="shocked">
-            😱
-          </span>
-          You haven't added anything to your cart yet!
-        </h3>
-      )}
-    </div>
-
+      ) : null}
+      {
+        loading ? <img src={spinner} alt="loading" /> : null
+      }
+      <Cart />
+    </>
   );
 };
 
-
-export default Cart;
+export default Detail;

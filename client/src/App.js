@@ -15,6 +15,10 @@ import { Provider } from 'react-redux';
 import store from './redux/store';
 import OrderHistory from "./pages/OrderHistory";
 
+// custom React Hook
+// commented out in favor of redux
+// import { StoreProvider } from "./utils/GlobalState";
+
 
 
 
@@ -30,11 +34,13 @@ const client = new ApolloClient({
   uri: '/graphql',
 })
 
+// Custom React Hook called added as StoreProvider container
 function App() {
   return (
     <ApolloProvider client={client}>
       <Router>
         <div>
+          {/*<StoreProvider>*/}
           <Provider store={store}>
             <Nav />
             <Switch>
@@ -48,6 +54,7 @@ function App() {
               
             </Switch>
           </Provider>
+          {/*</StoreProvider>*/}
         </div>
       </Router>
     </ApolloProvider>
